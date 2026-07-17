@@ -12,10 +12,14 @@ static FaultCode_t CheckForErrors(StateMachine_t *sm) {
         return FAULT_SDC_OPEN;
     }
     
-    // 3. Fren-Gaz Çakışması (EV 5.7: Sert fren + %25 gaz)
+    // =========================================================================
+    // FS KURALI: EV 5.7 (FREN VE GAZ ÇAKIŞMASI - APPS PLAUSIBILITY)
+    // Sürücü sert frene basarken (Örn: >30 Bar) aynı anda gaza basıyorsa (Örn: >%25)
+    // Motora giden güç ANINDA kesilmelidir. (Hata durumuna düşürülür)
+    // =========================================================================
     if (sm->inputs.brakePressure > 30 && sm->inputs.appsPercent > 25) {
-        // Not: Normalde gaz %5'in altına düşene kadar bu hata kalıcı olur.
-        // Şimdilik sadece tetikleme şartını yazıyoruz.
+        // Not: Kurala göre gaz pedalı %5'in altına düşene kadar bu hata KALICI olmalıdır.
+        // Şimdilik sadece hatayı tetikleme şartını yazıyoruz.
         return FAULT_BRAKE_THROTTLE;
     }
     
@@ -83,21 +87,33 @@ void SM_Update(StateMachine_t *sm, uint32_t deltaTimeMs) {
                 break;
             }
             
-            // RTD Şartı: Frene basıldı VE Start butonuna basıldı
+            // =========================================================================
+            // FS KURALI: EV 4.12.1 (SÜRÜŞE HAZIR OLMA - READY TO DRIVE SARTLARI)
+            // Araba sadece ve sadece şu şartlar aynı anda sağlanırsa çalışır:
+            // 1) Sürücü frene belirli bir güçle basıyor olmalı (> %15)
+            // 2) Start butonuna basılmış olmalı.
+            // =========================================================================
             if (sm->inputs.brakePressure > 15 && sm->inputs.startButtonPressed) {
                 sm->currentState = STATE_RTD_TRANSITION;
+                
+                // Zamanlayıcıyı sıfırla ve Buzzer'ı öttür!
                 sm->rtdTimerMs = 0;
                 sm->isRtdTimerActive = true;
-                sm->outputs.rtdBuzzerOn = true; // Sesi Başlat!
+                sm->outputs.rtdBuzzerOn = true; 
             }
             break;
 
         case STATE_RTD_TRANSITION:
-            // Buzzer'ı 2 saniye çal (2000 ms)
+            // =========================================================================
+            // FS KURALI: EV 4.12.3 (RTD SESLİ UYARI - BUZZER)
+            // Sürüş moduna geçmeden hemen önce, etraftaki mekanikerleri uyarmak için
+            // 1 saniye ile 3 saniye arası kesintisiz zil (buzzer) çalmalıdır.
+            // Biz burada tam 2 saniye (2000 ms) çalacak şekilde ayarladık.
+            // =========================================================================
             if (sm->rtdTimerMs >= 2000) {
-                sm->outputs.rtdBuzzerOn = false; // Sesi Kapat
-                sm->isRtdTimerActive = false;
-                sm->currentState = STATE_DRIVING; // ARTIK SÜRÜŞE HAZIR!
+                sm->outputs.rtdBuzzerOn = false;  // Sesi kapat
+                sm->isRtdTimerActive = false;     // Sayacı durdur
+                sm->currentState = STATE_DRIVING; // ARTIK MOTOR DÖNEBİLİR!
             }
             break;
 
