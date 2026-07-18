@@ -57,6 +57,20 @@
 
 
 # ┌─────────────────────────────────────────────────────────────
+# │  Inc/can_manager.h & Src/can_manager.c  (CAN Mesaj Yöneticisi)
+# ├─────────────────────────────────────────────────────────────
+# │
+# │   Satır 16-19 .... CAN_Manager_t (Zamanlayıcılar) (Header)
+# │   Satır 24-34 .... CAN_Manager_Init(), Update() ve Hardware Şablonu
+# │
+# │   Satır 10-21 .... Send_VCU_Control() — 10ms'de bir Tork ve Yön Gönder
+# │   Satır 24-35 .... Send_VCU_Status()  — 20ms'de bir Araç Durumu Gönder
+# │   Satır 39-53 .... CAN_Manager_Update() — ZAMANLAYICI ANA DÖNGÜSÜ
+# │
+# └─────────────────────────────────────────────────────────────
+
+
+# ┌─────────────────────────────────────────────────────────────
 # │  Inc/torque_control.h & Src/torque_control.c  (Tork Hesaplamaları)
 # ├─────────────────────────────────────────────────────────────
 # │
