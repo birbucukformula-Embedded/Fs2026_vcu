@@ -1,4 +1,5 @@
 #include "state_machine.h"
+#include "vehicle_config.h"  // Tüm ayarlanabilir değerler buradan gelir
 
 // Yardımcı Fonksiyon: Hataları kontrol eder
 static FaultCode_t CheckForErrors(StateMachine_t *sm) {
@@ -17,7 +18,7 @@ static FaultCode_t CheckForErrors(StateMachine_t *sm) {
     // Sürücü sert frene basarken (Örn: >30 Bar) aynı anda gaza basıyorsa (Örn: >%25)
     // Motora giden güç ANINDA kesilmelidir. (Hata durumuna düşürülür)
     // =========================================================================
-    if (sm->inputs.brakePressure > 30 && sm->inputs.appsPercent > 25) {
+    if (sm->inputs.brakePressure > CFG_BRAKE_THROTTLE_BRAKE_MIN && sm->inputs.appsPercent > CFG_BRAKE_THROTTLE_GAS_MAX) {
         // Not: Kurala göre gaz pedalı %5'in altına düşene kadar bu hata KALICI olmalıdır.
         // Şimdilik sadece hatayı tetikleme şartını yazıyoruz.
         return FAULT_BRAKE_THROTTLE;
@@ -72,7 +73,7 @@ void SM_Update(StateMachine_t *sm, uint32_t deltaTimeMs) {
             sm->outputs.torqueCommand = 0;
             
             // TS (Tractive System) Voltajı 60V'u aştıysa aktif duruma geç
-            if (sm->inputs.tsVoltage > 60) {
+            if (sm->inputs.tsVoltage > CFG_TS_MIN_VOLTAGE) {
                 sm->currentState = STATE_TS_ACTIVE;
             }
             break;
@@ -82,7 +83,7 @@ void SM_Update(StateMachine_t *sm, uint32_t deltaTimeMs) {
             sm->outputs.torqueCommand = 0;
             
             // Güvenlik: Araç geriye düşerse (TS < 60V) LV_READY'ye dön
-            if (sm->inputs.tsVoltage < 60) {
+            if (sm->inputs.tsVoltage < CFG_TS_MIN_VOLTAGE) {
                 sm->currentState = STATE_LV_READY;
                 break;
             }
@@ -93,7 +94,7 @@ void SM_Update(StateMachine_t *sm, uint32_t deltaTimeMs) {
             // 1) Sürücü frene belirli bir güçle basıyor olmalı (> %15)
             // 2) Start butonuna basılmış olmalı.
             // =========================================================================
-            if (sm->inputs.brakePressure > 15 && sm->inputs.startButtonPressed) {
+            if (sm->inputs.brakePressure > CFG_BRAKE_RTD_THRESHOLD && sm->inputs.startButtonPressed) {
                 sm->currentState = STATE_RTD_TRANSITION;
                 
                 // Zamanlayıcıyı sıfırla ve Buzzer'ı öttür!
@@ -110,7 +111,7 @@ void SM_Update(StateMachine_t *sm, uint32_t deltaTimeMs) {
             // 1 saniye ile 3 saniye arası kesintisiz zil (buzzer) çalmalıdır.
             // Biz burada tam 2 saniye (2000 ms) çalacak şekilde ayarladık.
             // =========================================================================
-            if (sm->rtdTimerMs >= 2000) {
+            if (sm->rtdTimerMs >= CFG_RTD_BUZZER_DURATION_MS) {
                 sm->outputs.rtdBuzzerOn = false;  // Sesi kapat
                 sm->isRtdTimerActive = false;     // Sayacı durdur
                 sm->currentState = STATE_DRIVING; // ARTIK MOTOR DÖNEBİLİR!
@@ -123,7 +124,7 @@ void SM_Update(StateMachine_t *sm, uint32_t deltaTimeMs) {
             
             // Tork hesaplama (Örnek: %100 gaz = 32000 Nm komut)
             // Gerçek projede burada Torque Vectoring algoritmaları çalışacaktır.
-            sm->outputs.torqueCommand = (sm->inputs.appsPercent * 32000) / 100;
+            sm->outputs.torqueCommand = (sm->inputs.appsPercent * CFG_MOTOR_MAX_TORQUE_NM) / 100;
             
             // Sürücü tekrar Start butonuna basarsa aracı kapat (TS_ACTIVE'e dön)
             if (sm->inputs.startButtonPressed) {
