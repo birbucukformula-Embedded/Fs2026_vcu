@@ -30,7 +30,9 @@ typedef enum {
 // Sensörlerden Gelecek Sanal Veriler (Hardware Abstraction için)
 // Koda her döngüde bu veriler beslenir, kod kararlarını bunlara göre alır.
 typedef struct {
-    uint8_t  appsPercent;        // 0-100%
+    uint8_t  appsPercent;        // Hesaplanmış son Gaz yüzdesi (0-100%)
+    uint8_t  apps1Percent;       // Sensör 1 (Güvenlik için ham veri)
+    uint8_t  apps2Percent;       // Sensör 2 (Güvenlik için ham veri)
     uint8_t  brakePressure;      // 0-255 (örn: Bar)
     uint16_t tsVoltage;          // Yüksek Gerilim (Volt)
     bool     startButtonPressed; // Start butonu anlık durumu
@@ -54,6 +56,9 @@ typedef struct {
     VehicleState_t previousState;
     uint32_t       rtdTimerMs;       // Buzzer süresi takibi
     bool           isRtdTimerActive; // Buzzer sayacı çalışıyor mu?
+    
+    uint32_t       appsTimerMs;      // %10 sapma kuralı zamanlayıcısı
+    bool           isAppsTimerActive;// %10 sapma sayacı çalışıyor mu?
     
     VCU_Inputs_t   inputs;
     VCU_Outputs_t  outputs;

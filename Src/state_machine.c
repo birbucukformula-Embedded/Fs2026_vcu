@@ -1,9 +1,10 @@
 #include "state_machine.h"
 #include "vehicle_config.h"  // Tüm ayarlanabilir değerler buradan gelir
 #include "torque_control.h"  // Tork hesaplama algoritmaları
+#include <stdlib.h>          // abs() fonksiyonu için
 
 // Yardımcı Fonksiyon: Hataları kontrol eder
-static FaultCode_t CheckForErrors(StateMachine_t *sm) {
+static FaultCode_t CheckForErrors(StateMachine_t *sm, uint32_t deltaTimeMs) {
     // 1. Dış Hatalar (BMS Hatası vb.)
     if (sm->inputs.externalFault != FAULT_NONE) {
         return sm->inputs.externalFault;
@@ -25,6 +26,26 @@ static FaultCode_t CheckForErrors(StateMachine_t *sm) {
         return FAULT_BRAKE_THROTTLE;
     }
     
+    // =========================================================================
+    // FS KURALI: T 11.8.8 (APPS PLAUSIBILITY - %10 SAPMA KURALI)
+    // İki gaz sensörü arasındaki fark %10'dan fazlaysa ve bu durum 
+    // 100 milisaniyeden uzun sürerse motora giden güç anında KESİLMELİDİR.
+    // =========================================================================
+    int16_t appsDiff = abs((int16_t)sm->inputs.apps1Percent - (int16_t)sm->inputs.apps2Percent);
+    
+    if (appsDiff > CFG_APPS_PLAUSIBILITY_PERCENT) {
+        sm->isAppsTimerActive = true;
+        sm->appsTimerMs += deltaTimeMs; // Sayacı artır
+        
+        if (sm->appsTimerMs >= CFG_APPS_PLAUSIBILITY_TIME_MS) {
+            return FAULT_APPS_PLAUSIBILITY; // HATA! (%10 sapma 100ms sürdü)
+        }
+    } else {
+        // Sensörler tekrar %10'un altına döndüyse sayacı sıfırla
+        sm->isAppsTimerActive = false;
+        sm->appsTimerMs = 0;
+    }
+    
     return FAULT_NONE;
 }
 
@@ -34,6 +55,8 @@ void SM_Init(StateMachine_t *sm) {
     sm->previousState = STATE_INIT;
     sm->rtdTimerMs = 0;
     sm->isRtdTimerActive = false;
+    sm->appsTimerMs = 0;
+    sm->isAppsTimerActive = false;
     
     // Çıktıları güvenli değerlere çek
     sm->outputs.inverterEnable = false;
@@ -45,7 +68,8 @@ void SM_Init(StateMachine_t *sm) {
 // Durum Makinesi Ana Döngüsü (Örn: Her 10ms'de bir çağrılır)
 void SM_Update(StateMachine_t *sm, uint32_t deltaTimeMs) {
     // 1. ÖNCE HATA KONTROLÜ (En yüksek öncelik)
-    FaultCode_t currentFault = CheckForErrors(sm);
+    //deltaTimeMs'i hata kontrolüne de gönderiyoruz çünkü APPS için gerekli.
+    FaultCode_t currentFault = CheckForErrors(sm, deltaTimeMs);
     
     if (currentFault != FAULT_NONE) {
         sm->currentState = STATE_FAULT;
@@ -141,7 +165,9 @@ void SM_Update(StateMachine_t *sm, uint32_t deltaTimeMs) {
             sm->isRtdTimerActive = false;
             
             // Hata giderildiyse ve Reset butonuna basıldıysa geri dön
-            if (CheckForErrors(sm) == FAULT_NONE && sm->inputs.resetButtonPressed) {
+            // CheckForErrors çağrısına deltaTimeMs=0 gönderiyoruz çünkü 
+            // sadece hatanın geçip geçmediğini (anlık olarak) soruyoruz, sayaç arttırmak istemiyoruz.
+            if (CheckForErrors(sm, 0) == FAULT_NONE && sm->inputs.resetButtonPressed) {
                 sm->outputs.activeFault = FAULT_NONE;
                 sm->currentState = STATE_LV_READY;
             }

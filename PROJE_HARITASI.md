@@ -78,10 +78,11 @@
 # │  Src/state_machine.c  (Ana Beyin Algoritması)
 # ├─────────────────────────────────────────────────────────────
 # │
-# │   Satır 4-27  .... CheckForErrors()  — Hata kontrol fonksiyonu
+# │   Satır 4-33  .... CheckForErrors()  — Hata kontrol fonksiyonu
 # │     ├── :6-8     Dış hata kontrolü (BMS vb.)
 # │     ├── :10-13   SDC (Güvenlik Devresi) kopma kontrolü
-# │     └── :15-24   ★ FS KURALI EV 5.7: Fren-Gaz çakışması
+# │     ├── :15-24   ★ FS KURALI EV 5.7: Fren-Gaz çakışması
+# │     └── :27-44   ★ FS KURALI T 11.8.8: APPS %10 Sapma Kuralı
 # │
 # │   Satır 30-41 .... SM_Init()  — Sistemi güvenli başlatma
 # │
@@ -115,6 +116,13 @@
 # ══════════════════════════════════════════════════════════════
 # HIZLI ERİŞİM: BİR ŞEYİ DEĞİŞTİRMEK İSTİYORSAN
 # ══════════════════════════════════════════════════════════════
+### FS Yarışma Kuralları (Kodun İçine Gömülü Kurallar)
+| Kural Numarası | Kural Adı | Ne Yapıyor? | Dosya Yolu | Satır |
+|----------------|-----------|------------|-----------|-------|
+| **EV 5.7** | Fren-Gaz Çakışması | Fren >30 Bar + Gaz >%25 ise tork kesilir | `Src/state_machine.c` | **Satır 15-24** |
+| **T 11.8.8** | APPS %10 Sapma | Gaz sensörleri %10'dan fazla saparsa (100ms) gücü kes | `Src/state_machine.c` | **Satır 27-44** |
+| **EV 4.12.1** | RTD Koşulları | Fren >%15 basılı + Start butonu → Buzzer | `Src/state_machine.c` | **Satır 110-123** |
+| **EV 4.12.3** | RTD Buzzer Süresi | 2 saniye kesintisiz ses → Sürüş moduna geç | `Src/state_machine.c` | **Satır 127-137** |
 #
 #   Tork miktarını ayarla ............. state_machine.c :126
 #   Buzzer süresini değiştir .......... state_machine.c :113  (2000 → ?)
