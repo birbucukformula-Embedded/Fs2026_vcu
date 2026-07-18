@@ -57,6 +57,24 @@
 
 
 # ┌─────────────────────────────────────────────────────────────
+# │  Inc/torque_control.h & Src/torque_control.c  (Tork Hesaplamaları)
+# ├─────────────────────────────────────────────────────────────
+# │
+# │   Satır 12-14 .... TC_CalculateTorque() Prototipleri (Header)
+# │
+# │   Satır 4-15  .... TC_ApplyTorqueMap()  — Ölü bölge (Deadzone) ve Gaz→Tork dönüşümü
+# │   Satır 18-35 .... TC_ApplyRegen()      — Rejeneratif frenleme (Motoru jeneratör yap)
+# │   Satır 38-55 .... TC_ApplySafetyLimits() — Pil sıcaksa veya şarj bitiyorsa torku kıs
+# │
+# │   Satır 59-74 .... TC_CalculateTorque() — ANA ÇAĞRI FONKSİYONU
+# │     ├── :63      Gaza basılıyorsa → TC_ApplyTorqueMap()
+# │     ├── :67      Gazdan çekildiyse → TC_ApplyRegen()
+# │     └── :71      Son olarak → TC_ApplySafetyLimits() uygula ve İnverter'e gönder
+# │
+# └─────────────────────────────────────────────────────────────
+
+
+# ┌─────────────────────────────────────────────────────────────
 # │  Src/state_machine.c  (Ana Beyin Algoritması)
 # ├─────────────────────────────────────────────────────────────
 # │

@@ -1,5 +1,6 @@
 #include "state_machine.h"
 #include "vehicle_config.h"  // Tüm ayarlanabilir değerler buradan gelir
+#include "torque_control.h"  // Tork hesaplama algoritmaları
 
 // Yardımcı Fonksiyon: Hataları kontrol eder
 static FaultCode_t CheckForErrors(StateMachine_t *sm) {
@@ -122,9 +123,9 @@ void SM_Update(StateMachine_t *sm, uint32_t deltaTimeMs) {
             // SÜRÜŞ MODU! Inverter aktif edilir ve APPS değerine göre tork verilir.
             sm->outputs.inverterEnable = true;
             
-            // Tork hesaplama (Örnek: %100 gaz = 32000 Nm komut)
-            // Gerçek projede burada Torque Vectoring algoritmaları çalışacaktır.
-            sm->outputs.torqueCommand = (sm->inputs.appsPercent * CFG_MOTOR_MAX_TORQUE_NM) / 100;
+            // Tork hesaplama (Torque Control modülünden gelir)
+            // Bu fonksiyon; deadzone, regen ve sıcaklık limitlerini otomatik uygular.
+            sm->outputs.torqueCommand = TC_CalculateTorque(&sm->inputs);
             
             // Sürücü tekrar Start butonuna basarsa aracı kapat (TS_ACTIVE'e dön)
             if (sm->inputs.startButtonPressed) {
