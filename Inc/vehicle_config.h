@@ -118,7 +118,8 @@
  *  GÜVENLİK DEVRESİ (SDC) AYARLARI
  * ═══════════════════════════════════════════════════════════════════════════ */
 
-#define CFG_TS_MIN_VOLTAGE           60     // TS Aktif minimum voltaj (V)
-                                            // BMS voltajı bunun altındaysa TS kapalı sayılır
+#define CFG_TS_MIN_VOLTAGE              60    // TS_ACTIVE olmak için gereken minimum Inverter voltajı
+#define CFG_PRECHARGE_TIMEOUT_MS        2000  // Precharge işleminin maksimum süresi (ms). Geçerse HATA.
+#define CFG_PRECHARGE_SUCCESS_PERCENT   90    // İnverterin bataryaya göre şarj olma yüzdesi (FS EV 4.11 kuralı)
 
 #endif // VEHICLE_CONFIG_H

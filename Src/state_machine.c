@@ -57,12 +57,16 @@ void SM_Init(StateMachine_t *sm) {
     sm->isRtdTimerActive = false;
     sm->appsTimerMs = 0;
     sm->isAppsTimerActive = false;
+    sm->prechargeTimerMs = 0;
     
     // Çıktıları güvenli değerlere çek
     sm->outputs.inverterEnable = false;
     sm->outputs.rtdBuzzerOn = false;
     sm->outputs.torqueCommand = 0;
     sm->outputs.activeFault = FAULT_NONE;
+    sm->outputs.contactorNegative = false;
+    sm->outputs.contactorPrecharge = false;
+    sm->outputs.contactorPositive = false;
 }
 
 // Durum Makinesi Ana Döngüsü (Örn: Her 10ms'de bir çağrılır)
@@ -93,24 +97,49 @@ void SM_Update(StateMachine_t *sm, uint32_t deltaTimeMs) {
             break;
 
         case STATE_LV_READY:
-            // Tork ve Inverter kapalı kalmalı
-            sm->outputs.inverterEnable = false;
-            sm->outputs.torqueCommand = 0;
+            // Sadece Low Voltage (12V) sistemleri açık. Yüksek voltaj bekleniyor.
+            // SDC (Güvenlik devresi) kapandığında TS Master anahtarı açılmış demektir.
+            // Bu durumda Kontaktörleri kapatmak için PRECHARGE moduna geçiyoruz.
+            if (sm->inputs.sdcClosed == true) {
+                sm->prechargeTimerMs = 0; // Sayacı sıfırla
+                sm->currentState = STATE_PRECHARGING;
+            }
+            break;
             
-            // TS (Tractive System) Voltajı 60V'u aştıysa aktif duruma geç
-            if (sm->inputs.tsVoltage > CFG_TS_MIN_VOLTAGE) {
+        case STATE_PRECHARGING:
+            // FS KURALI: EV 4.11
+            // Önce AIR- ve Precharge Rölesi kapatılır
+            sm->outputs.contactorNegative = true;
+            sm->outputs.contactorPrecharge = true;
+            
+            sm->prechargeTimerMs += deltaTimeMs;
+            
+            // Voltaj hedefi: İnverter voltajı (TS), Batarya voltajının (BMS) %90'ına ulaşmalı
+            uint16_t targetVoltage = (sm->inputs.bmsVoltage * CFG_PRECHARGE_SUCCESS_PERCENT) / 100;
+            
+            if (sm->inputs.tsVoltage >= targetVoltage && sm->inputs.tsVoltage >= CFG_TS_MIN_VOLTAGE) {
+                // Şarj başarılı! Artı kontaktörü kapat, precharge direncini devreden çıkar
+                sm->outputs.contactorPositive = true;
+                sm->outputs.contactorPrecharge = false;
                 sm->currentState = STATE_TS_ACTIVE;
+            } 
+            else if (sm->prechargeTimerMs > CFG_PRECHARGE_TIMEOUT_MS) {
+                // Zaman aşımı (Örn: 2 saniyede şarj olamadı -> Kaçak veya kısa devre var)
+                sm->outputs.activeFault = FAULT_PRECHARGE_FAIL;
+                sm->currentState = STATE_FAULT;
             }
             break;
 
         case STATE_TS_ACTIVE:
-            sm->outputs.inverterEnable = false;
-            sm->outputs.torqueCommand = 0;
+            // Yüksek Gerilim sistemi aktif (400V - 600V hatta var). İnverter beklemede.
             
-            // Güvenlik: Araç geriye düşerse (TS < 60V) LV_READY'ye dön
-            if (sm->inputs.tsVoltage < CFG_TS_MIN_VOLTAGE) {
+            // SDC koptuysa (Örn: TS Master kapatıldıysa veya E-Stop basıldıysa)
+            // LV_READY moduna güvenli bir şekilde geri dön.
+            if (sm->inputs.sdcClosed == false) {
+                sm->outputs.contactorNegative = false;
+                sm->outputs.contactorPositive = false;
+                sm->outputs.contactorPrecharge = false;
                 sm->currentState = STATE_LV_READY;
-                break;
             }
             
             // =========================================================================
@@ -161,7 +190,13 @@ void SM_Update(StateMachine_t *sm, uint32_t deltaTimeMs) {
             // HATA DURUMU! Aracı kilitle.
             sm->outputs.inverterEnable = false;
             sm->outputs.torqueCommand = 0;
-            sm->outputs.rtdBuzzerOn = false;
+            
+            // FS KURALI: Hata durumunda yüksek voltaj kontaktörleri (Tractive System) DERHAL açılmalıdır (Güç kesilmelidir).
+            sm->outputs.contactorNegative = false;
+            sm->outputs.contactorPositive = false;
+            sm->outputs.contactorPrecharge = false;
+            
+            sm->rtdTimerMs = 0;
             sm->isRtdTimerActive = false;
             
             // Hata giderildiyse ve Reset butonuna basıldıysa geri dön

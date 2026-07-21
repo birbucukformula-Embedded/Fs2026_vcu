@@ -100,29 +100,34 @@
 # │
 # │   Satır 30-41 .... SM_Init()  — Sistemi güvenli başlatma
 # │
-# │   Satır 44-151 ... SM_Update()  — ANA DÖNGÜ (switch-case)
+# │   Satır 72-214 ... SM_Update()  — ANA DÖNGÜ (switch-case)
 # │     │
-# │     ├── :64-67   STATE_INIT → LV_READY geçişi
+# │     ├── :94-97   STATE_INIT → LV_READY geçişi
 # │     │
-# │     ├── :69-78   STATE_LV_READY
-# │     │   └── Voltaj > 60V ise → TS_ACTIVE            :75
+# │     ├── :99-107  STATE_LV_READY
+# │     │   └── SDC Kapalıysa → PRECHARGING geçişi        :103
 # │     │
-# │     ├── :80-104  STATE_TS_ACTIVE
-# │     │   ├── Voltaj < 60V ise → LV_READY'ye geri dön :85
-# │     │   └── ★ FS KURALI EV 4.12.1: RTD Şartları     :90-103
-# │     │       └── Fren > %15 + Start basılı → Buzzer   :96
+# │     ├── :109-131 STATE_PRECHARGING (Ön Şarj / Kontaktörler)
+# │     │   ├── AIR- ve Precharge Rölesini Kapat            :112
+# │     │   ├── İnverter V. > %90 Batarya V. ise → TS_ACTIVE :120
+# │     │   └── 2 Saniye Timeout olursa → FAULT             :126
 # │     │
-# │     ├── :106-118 STATE_RTD_TRANSITION
-# │     │   └── ★ FS KURALI EV 4.12.3: Buzzer 2sn        :107-117
-# │     │       └── 2000ms dolunca → DRIVING moduna geç   :113
+# │     ├── :133-159 STATE_TS_ACTIVE
+# │     │   ├── SDC Açılırsa → Kontaktörleri aç, LV_READY dön :138
+# │     │   └── ★ FS KURALI EV 4.12.1: RTD Şartları         :146-158
+# │     │       └── Fren > %15 + Start basılı → Buzzer
 # │     │
-# │     ├── :120-132 STATE_DRIVING (Sürüş Modu)
-# │     │   ├── Tork hesaplama (APPS × 32000 / 100)       :126
-# │     │   └── Start tekrar basılırsa → TS_ACTIVE         :129
+# │     ├── :161-173 STATE_RTD_TRANSITION
+# │     │   └── ★ FS KURALI EV 4.12.3: Buzzer 2sn           :163-172
+# │     │       └── 2000ms dolunca → DRIVING moduna geç
 # │     │
-# │     └── :134-146 STATE_FAULT (Hata Durumu)
-# │         ├── Tork = 0, İnverter = kapalı                :136-139
-# │         └── Hata gitti + Reset basılı → LV_READY       :142
+# │     ├── :175-187 STATE_DRIVING (Sürüş Modu)
+# │     │   ├── Tork hesaplama (Torque Control'den)         :181
+# │     │   └── Start tekrar basılırsa → TS_ACTIVE          :184
+# │     │
+# │     └── :189-209 STATE_FAULT (Hata Durumu)
+# │         ├── Gücü Kes ve Tüm Kontaktörleri Aç            :195
+# │         └── Hata gitti + Reset basılı → LV_READY        :205
 # │
 # └─────────────────────────────────────────────────────────────
 
