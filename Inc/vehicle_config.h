@@ -113,6 +113,9 @@
 #define CFG_CAN_VCU_CONTROL_PERIOD   10     // VCU_Control mesaj periyodu (ms)
 #define CFG_CAN_VCU_STATUS_PERIOD    20     // VCU_Status mesaj periyodu (ms)
 
+#define CFG_TELEM_TX_PERIOD_MS       100    // Telemetri paketi gönderim periyodu (ms)
+                                            // 100ms = Saniyede 10 paket (Yer istasyonunda akıcı grafik için yeterli)
+
 
 /* ═══════════════════════════════════════════════════════════════════════════
  *  GÜVENLİK DEVRESİ (SDC) AYARLARI
